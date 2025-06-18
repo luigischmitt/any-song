@@ -74,9 +74,6 @@ func (api *API) CatchLyricsHandler(c *fiber.Ctx) error {
 }
 
 func (api *API) executeCatchLyricsScript(ctx context.Context, musicName string) (*LyricsResponse, error) {
-	// Caminho para o script Python
-	scriptPath := filepath.Join("utils", "catch_lyrics.py")
-	
 	// Criar um script temporário que chama a função lyrics com o parâmetro
 	pythonCode := fmt.Sprintf(`
 import sys
