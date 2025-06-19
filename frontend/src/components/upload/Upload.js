@@ -4,6 +4,10 @@ import styles from './Upload.module.css';
 export default function Upload({ onFileUpload }) {
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);
+  const [processing, setProcessing] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState('');
+  const [jobId, setJobId] = useState(null);
+  const [result, setResult] = useState(null);
 
   const handleDrag = useCallback((e) => {
     e.preventDefault();
@@ -47,6 +51,8 @@ export default function Upload({ onFileUpload }) {
     }
 
     setUploadedFile(file);
+    setResult(null);
+    setJobId(null);
     if (onFileUpload) {
       onFileUpload(file);
     }
@@ -54,8 +60,92 @@ export default function Upload({ onFileUpload }) {
 
   const removeFile = () => {
     setUploadedFile(null);
+    setResult(null);
+    setJobId(null);
+    setProcessing(false);
+    setProcessingStatus('');
     if (onFileUpload) {
       onFileUpload(null);
+    }
+  };
+
+  const convertToKaraoke = async () => {
+    if (!uploadedFile) return;
+
+    setProcessing(true);
+    setProcessingStatus('Uploading file...');
+
+    try {
+      const formData = new FormData();
+      formData.append('audio_file', uploadedFile);
+      formData.append('song_title', uploadedFile.name.replace(/\.[^/.]+$/, ""));
+      formData.append('artist_name', '');
+
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:8000/karaoke/process', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setJobId(data.job_id);
+        setProcessingStatus('Processing with AI...');
+        
+        // Polling para verificar status
+        pollJobStatus(data.job_id);
+      } else {
+        throw new Error(data.message || 'Processing failed');
+      }
+    } catch (error) {
+      console.error('Error processing karaoke:', error);
+      setProcessingStatus('Error: ' + error.message);
+      setProcessing(false);
+    }
+  };
+
+  const pollJobStatus = async (jobId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8000/karaoke/status/${jobId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.status === 'completed') {
+        setProcessing(false);
+        setProcessingStatus('✅ Karaoke ready!');
+        setResult({
+          backingTrackUrl: data.backing_track_url,
+          originalUrl: data.original_url
+        });
+      } else if (data.status === 'failed') {
+        setProcessing(false);
+        setProcessingStatus('❌ Processing failed: ' + (data.error_message || 'Unknown error'));
+      } else {
+        // Continue polling
+        setProcessingStatus('🎵 Creating backing track...');
+        setTimeout(() => pollJobStatus(jobId), 3000);
+      }
+    } catch (error) {
+      console.error('Error checking job status:', error);
+      setProcessingStatus('Error checking status: ' + error.message);
+      setProcessing(false);
     }
   };
 
@@ -108,15 +198,51 @@ export default function Upload({ onFileUpload }) {
               onClick={removeFile}
               className={styles.removeButton}
               title="Remove file"
+              disabled={processing}
             >
               ✕
             </button>
           </div>
-          <div className={styles.processButton}>
-            <button className={styles.convertButton}>
-              Convert to Karaoke
-            </button>
-          </div>
+          
+          {!processing && !result && (
+            <div className={styles.processButton}>
+              <button 
+                className={styles.convertButton}
+                onClick={convertToKaraoke}
+                disabled={processing}
+              >
+                Convert to Karaoke
+              </button>
+            </div>
+          )}
+
+          {processing && (
+            <div className={styles.processingStatus}>
+              <div className={styles.spinner}></div>
+              <p>{processingStatus}</p>
+            </div>
+          )}
+
+          {result && (
+            <div className={styles.result}>
+              <h4>✅ Karaoke Ready!</h4>
+              <div className={styles.resultButtons}>
+                <a 
+                  href={result.backingTrackUrl} 
+                  download
+                  className={styles.downloadButton}
+                >
+                  Download Backing Track
+                </a>
+                <button 
+                  className={styles.playButton}
+                  onClick={() => window.open(`/karaoke?track=${encodeURIComponent(result.backingTrackUrl)}`, '_blank')}
+                >
+                  Play Karaoke
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

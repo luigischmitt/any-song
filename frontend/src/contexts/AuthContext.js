@@ -22,6 +22,15 @@ export function AuthProvider({ children }) {
   const [backendToken, setBackendToken] = useState(null);
   const [backendAuthenticated, setBackendAuthenticated] = useState(false);
 
+  // Verificar se existe token no localStorage ao iniciar
+  useEffect(() => {
+    const savedToken = localStorage.getItem('token');
+    if (savedToken) {
+      setBackendToken(savedToken);
+      console.log('🔄 Token recuperado do localStorage');
+    }
+  }, []);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -52,6 +61,10 @@ export function AuthProvider({ children }) {
               setBackendToken(idToken);
               setUser(user);
               setBackendAuthenticated(true);
+              
+              // Salvar token no localStorage para uso em outros componentes
+              localStorage.setItem('token', idToken);
+              console.log('💾 Token salvo no localStorage');
             } catch (parseError) {
               console.error('❌ Erro ao fazer parse do JSON:', parseError);
               console.error('📄 Resposta que causou erro:', responseText);
@@ -75,6 +88,10 @@ export function AuthProvider({ children }) {
         setUser(null);
         setBackendToken(null);
         setBackendAuthenticated(false);
+        
+        // Remover token do localStorage
+        localStorage.removeItem('token');
+        console.log('🗑️ Token removido do localStorage');
       }
       setLoading(false);
     });
@@ -117,6 +134,9 @@ export function AuthProvider({ children }) {
       // Depois fazer logout no Firebase
       await signOut(auth);
       setBackendToken(null);
+      
+      // Remover token do localStorage
+      localStorage.removeItem('token');
       console.log('✅ Logout realizado com sucesso');
     } catch (error) {
       console.error('❌ Erro no logout:', error);

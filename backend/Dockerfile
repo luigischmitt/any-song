@@ -7,17 +7,18 @@ RUN go mod download
 
 COPY . .
 COPY config/ config/
+COPY internal/ internal/
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o main ./cmd
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o main ./cmd/api
 
-FROM alpine:latest
+FROM ubuntu:22.04
 
 # Install Python3, pip, ffmpeg and other necessary packages
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     python3 \
-    py3-pip \
+    python3-pip \
     ffmpeg \
-    && python3 -m pip install --break-system-packages --upgrade pip
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -27,10 +28,14 @@ COPY --from=builder /app/config ./config
 
 # Copy Python scripts and requirements
 COPY utils/ ./utils/
+COPY process_song.py ./
 COPY requirements.txt .
 
+# Create necessary directories
+RUN mkdir -p uploads output data_roots
+
 # Install Python dependencies
-RUN python3 -m pip install --break-system-packages -r requirements.txt
+RUN python3 -m pip install -r requirements.txt
 
 EXPOSE 8000
 

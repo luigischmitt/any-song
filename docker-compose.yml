@@ -82,6 +82,7 @@ services:
       - GCS_BUCKET_NAME=${GCS_BUCKET_NAME:-anysong-audios}
       - REDIS_ADDR=${REDIS_ADDR:-redis:6379}
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - MUSICAI_API_KEY=${MUSICAI_API_KEY}
     depends_on:
       - db
       - redis

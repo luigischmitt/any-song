@@ -42,6 +42,10 @@ func (api *API) SetupRoutes() {
 	// Transcription routes 
 	api.Router.Post("/transcribe", api.AuthMiddleware(), api.TranscribeAudioHandler)
 
+	// Karaoke processing routes
+	api.Router.Post("/karaoke/process", api.AuthMiddleware(), api.ProcessKaraokeHandler)
+	api.Router.Get("/karaoke/status/:job_id", api.AuthMiddleware(), api.GetKaraokeJobStatusHandler)
+
 	// Audio files route
 	api.Router.Get("/audio-files", api.AuthMiddleware(), api.ListAudioFilesHandler)
 
